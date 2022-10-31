@@ -83,9 +83,15 @@ while_no_salir:
 		JMP fin_si
 		si_es_TOP:
 		cmp ax, COMMAND_TOP
-		JNZ si_es_DUMP
+		JNZ si_es_DUP
 			call copiar_tope_a_ax
 			call imprimir_en_puerto
+		JMP fin_si
+		si_es_DUP:
+		cmp ax, COMMAND_DUP
+		JNZ si_es_DUMP
+			call copiar_tope_a_ax
+			call apilar_ax
 		JMP fin_si
 		si_es_DUMP:
 		cmp ax, COMMAND_DUMP
