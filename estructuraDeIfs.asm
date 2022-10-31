@@ -376,6 +376,11 @@ ENTRADA: 2, 15, 1, 3, 1, 2, 15, 4, 255
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
+;//////////// TEST //////////////////
+
+;MOD 
+;ENTRADA: 2, 15, 1, 3, 1, 2, 15, 4, 255
+
 ;PROD Con negativos
 ;ENTRADA: 2, 15, 1, -2, 1, -3, 13, 4, 255
 
