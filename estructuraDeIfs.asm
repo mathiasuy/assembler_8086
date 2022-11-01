@@ -131,7 +131,14 @@ while_no_salir:
 		si_es_FACT:
 		cmp ax, COMMAND_FACT
 		JNZ si_es_SUM
-
+			mov ax, 1
+			push dx
+			call copiar_tope_a_ax
+			call desapilar
+			mov bx, 1
+			call factorial
+			call apilar_bx
+			pop dx
 			call log_exitoso
 		JMP fin_si
 		si_es_SUM:
@@ -362,7 +369,7 @@ salir:
 
 	apilar_bx proc
 		call check_pila_llena
-		JNZ apilar_ax_continuar
+		JNZ apilar_bx_continuar
 			call desbordamiento_de_pila
 		apilar_bx_continuar:
 		add si, 2
@@ -427,11 +434,28 @@ salir:
 		ret
 	swap_ax_con_bx endp
 
+	factorial proc
+		factorial_while:
+			cmp ax, 0
+			JE factorial_es_cero
+				dec ax ; incremento aca para llegar hasta 0 y ahi asignar a bx el paso base 1
+				call factorial
+				inc ax ; aqui empieza la vuelta recursiva
+				push ax ; respaldo ax porque mul guardara en el el resultado del producto
+				mul bx ; el resultado queda en ax porque la operacion lo deja en ax
+				mov bx, ax ; se asigna a bx para que se use para multiplicar al proximo
+				pop ax ; restauro ax
+				JMP factorial_fin ; aqui hago que 'termine' el metodo
+			factorial_es_cero:
+				mov bx, 1 ; paso base
+			factorial_fin:
+		ret
+	factorial endp
 
 _saltear:
 	
 .ports
-ENTRADA: 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14,  255
+ENTRADA: 1, 6, 9, 4, 255
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
