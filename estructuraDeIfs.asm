@@ -461,6 +461,9 @@ PUERTO_SALIDA_DEFECTO: 1
 
 ;//////////// TEST //////////////////
 
+; test para probar factorial res. esperado 720
+;ENTRADA: 1, 6, 9, 4, 255 
+
 ; test mostrar errores en bitacora comando invalido y falta operando
 ; ENTRADA: 200, 1, 14, 11, 14, 1, 1, 11, 4, 255
 ;MOD 
