@@ -57,8 +57,19 @@ mov cx, PUERTO_SALIDA_DEFECTO; cx quedara reservado globalmente para la salida
 call poner_siguiente_comando_en_ax
 JZ salir
 while_no_salir:
-		cmp ax, C_LOG
-		JE si_es_LOG
+	cmp ax, C_LOG
+	JNE procesar_operando_o_comando
+	si_es_LOG:
+		push ax
+		call poner_siguiente_operando_en_ax
+		mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
+		pop ax
+		call log_preprocesamiento	
+		mov ax, dx
+		call log_parametro	
+	JMP fin_si
+
+	procesar_operando_o_comando:
 		call log_preprocesamiento	
 		si_es_NUM:
 		cmp ax, C_NUM
@@ -69,21 +80,10 @@ while_no_salir:
 		JMP fin_si
 		si_es_PORT:
 		cmp ax, C_PORT
-		JNZ si_es_LOG
+		JNZ si_es_TOP
 			call poner_siguiente_operando_en_ax
 			call log_parametro	
 			mov cx, ax ; setteo cx, que es la salida, con el valor tomado en bx
-		JMP fin_si
-		si_es_LOG:
-		cmp ax, C_LOG
-		JNZ si_es_TOP
-			push ax
-			call poner_siguiente_operando_en_ax
-			mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
-			pop ax
-			call log_preprocesamiento	
-			mov ax, dx
-			call log_parametro	
 		JMP fin_si
 		si_es_TOP:
 		cmp ax, C_TOP
@@ -449,7 +449,7 @@ salir:
 _saltear:
 	
 .ports
-ENTRADA: 1,1, 1,2, 1,3, 9, 5, 2,3, 9, 5, 3,4, 7, 9, 5, 999, -999, 2,5, 5, 254, 1,-6, 1,2, 14, 4, 1,-2, 13, 4, 255
+ENTRADA: 1,1, 1,2, 1,3, 1,4, 1,5, 1,1, 1,9, 1,8, 1,-1400, 1,10, 1,11, 1,12, 1,13, 11, 4, 12, 4, 13, 4, 14, 4, 15, 4, 16, 4, 17, 4, 18, 4, 7, 4, 19, 4, 10, 4, 8, 4, 6, 5, 254, 255 
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
