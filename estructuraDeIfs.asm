@@ -62,34 +62,41 @@ JZ salir
 while_no_salir:
 	cmp ax, MARCA_SALIDA
 	JZ salir
+		call log_preprocesamiento	
 		si_es_NUM:
 		cmp ax, COMMAND_NUM
 		JNZ si_es_PORT
 			call poner_siguiente_operando_en_ax
+			call log_parametro	
 			call apilar_ax
-			call log_exitoso
 		JMP fin_si
 		si_es_PORT:
 		cmp ax, COMMAND_PORT
 		JNZ si_es_LOG
 			call poner_siguiente_operando_en_ax
+			call log_parametro	
 			mov cx, ax ; setteo cx, que es la salida, con el valor tomado en bx
 		JMP fin_si
 		si_es_LOG:
 		cmp ax, COMMAND_LOG
 		JNZ si_es_TOP
 			call poner_siguiente_operando_en_ax
+			call log_parametro	
 			mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
 		JMP fin_si
 		si_es_TOP:
 		cmp ax, COMMAND_TOP
 		JNZ si_es_DUP
+			cmp si, 0
+			JL falta_operando
 			call copiar_tope_a_ax
 			call imprimir_en_puerto
 		JMP fin_si
 		si_es_DUP:
 		cmp ax, COMMAND_DUP
 		JNZ si_es_DUMP
+			cmp si, 0
+			JL falta_operando
 			call copiar_tope_a_ax
 			call apilar_ax
 		JMP fin_si
@@ -110,27 +117,32 @@ while_no_salir:
 		si_es_SWAP:
 		cmp ax, COMMAND_SWAP
 		JNZ si_es_NEG
+			cmp si, 0
+			JL falta_operando
 			call copiar_tope_a_ax
-			call copiar_el_segundo_de_la_pila_a_bx_y_retornar_true_si_no_se_pudo
-			jz fin_si
 			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
 			call desapilar
 			call apilar_ax
 			call apilar_bx
-			call log_exitoso
 		JMP fin_si
 		si_es_NEG:
 		cmp ax, COMMAND_NEG
 		JNZ si_es_FACT
+			cmp si, 0
+			JL falta_operando
 			call copiar_tope_a_ax
 			call desapilar
 			neg ax
 			call apilar_ax
-			call log_exitoso
 		JMP fin_si
 		si_es_FACT:
 		cmp ax, COMMAND_FACT
 		JNZ si_es_SUM
+			cmp si, 0
+			JL falta_operando
 			mov ax, 1
 			push dx
 			call copiar_tope_a_ax
@@ -139,71 +151,89 @@ while_no_salir:
 			call factorial
 			call apilar_bx
 			pop dx
-			call log_exitoso
 		JMP fin_si
 		si_es_SUM:
 		cmp ax, COMMAND_SUM
 		JNZ si_es_CLR
 			push si
-			mov bx, 0
+			mov ax, 0
 			while_suma:
 				call pila_no_esta_vacia
 				JZ fin_while_suma
-					call copiar_tope_a_ax
+					call copiar_tope_a_bx
 					call desapilar
-					add bx, ax
+					add ax, bx
 				JMP while_suma
 			fin_while_suma:
 			pop si
 			call imprimir_en_puerto
-			call log_exitoso
 		JMP fin_si
 		si_es_CLR:
 		cmp ax, COMMAND_CLEAR
 		JNZ si_es_HALT
 			mov si, 0
-			call log_exitoso
 		JMP fin_si
 		si_es_HALT:
 		cmp ax, COMMAND_HALT
 		JNZ si_es_OP_SUM
-			call log_exitoso
 			JMP salir
 		JMP fin_si
 		si_es_OP_SUM:
 		cmp ax, OP_SUM
 		JNZ si_es_OP_RES
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			add ax, bx 
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_RES:
 		cmp ax, OP_RES
 		JNZ si_es_OP_PRO
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			neg bx
 			add ax, bx 
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_PRO:
 		cmp ax, OP_PROD
 		JNZ si_es_OP_DIV
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			push dx
 			mul bx 
 			pop dx
-			call log_exitoso
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_DIV:
 		cmp ax, OP_DIV
 		JNZ si_es_OP_MOD
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
-			call swap_ax_con_bx
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
 			push dx
 			mov dx, 0
 			cmp ax, 0
@@ -212,13 +242,19 @@ while_no_salir:
 			no_poner_en_negativo:
 			idiv bx ; ax <- ax div bx
 			pop dx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_MOD:
 		cmp ax, OP_MOD
 		JNZ si_es_OP_AND
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			push dx
 			mov dx, 0
 			cmp ax, 0
@@ -228,44 +264,89 @@ while_no_salir:
 			idiv bx ; ax <- ax div bx
 			mov ax, dx
 			pop dx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_AND:
 		cmp ax, OP_AND
 		JNZ si_es_OP_OR
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			and ax, bx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_OR:
 		cmp ax, OP_OR
 		JNZ si_es_OP_DIZ
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			or ax, bx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_DIZ:
 		cmp ax, OP_DESP_IZQ
 		JNZ si_es_OP_DDE
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			or ax, bx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_es_OP_DDE:
 		cmp ax, OP_DESP_DER
 		JNZ si_no
-			call pre_procesamiento_operacion_binaria
-			jz fin_si
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_ax
+			call desapilar
+			cmp si, 0
+			JL falta_operando
+			call copiar_tope_a_bx
+			call desapilar
 			or ax, bx
-			call post_procesamiento_operacion_binaria
+			call apilar_ax
 		JMP fin_si
 		si_no:
 			call log_comando_invalido
+			JMP contiunar_if
+	falta_operando:
+		call log_falta_operando
+		JMP fin_si
+	desbordamiento_de_pila:
+		call log_desbordamiento_de_pila
+		JMP fin_si
 	fin_si:
-	call poner_siguiente_comando_en_ax
+
+
+			cmp bx, 0
+			JG error_hay_desbordamiento
+			JG error_falta_operando
+			call log_exitoso
+			JMP contiunar_if
+			error_hay_desbordamiento:
+			JMP contiunar_if
+			error_falta_operando:
+			JMP contiunar_if
+
+
+	contiunar_if:
+		call poner_siguiente_comando_en_ax
 	JMP while_no_salir
 salir:
 
@@ -280,6 +361,20 @@ salir:
 		pop dx
 		ret
 	imprimir_en_puerto endp
+
+	log_preprocesamiento proc
+		push ax
+		mov ax, 0
+		out dx, ax
+		pop ax
+		out dx, ax
+		ret
+	log_preprocesamiento endp
+
+	log_parametro proc
+		out dx, ax
+		ret
+	log_parametro endp
 
 	log_exitoso proc
 		push ax
@@ -308,7 +403,7 @@ salir:
 		ret
 	log_comando_invalido endp
 
-	falta_operando proc
+	log_falta_operando proc
 		push ax
 		mov ax, 8
 		out dx, ax
@@ -316,7 +411,7 @@ salir:
 		cmp ax, 8 ; activo prox JNZ si hay error
 		pop ax
 		ret
-	falta_operando endp
+	log_falta_operando endp
 
 	desbordamiento_de_pila proc
 		push ax
@@ -357,6 +452,7 @@ salir:
 		ret
 	check_pila_llena endp
 
+
 	apilar_ax proc
 		call check_pila_llena
 		JNZ apilar_ax_continuar
@@ -378,6 +474,10 @@ salir:
 	apilar_bx endp
 
 	desapilar proc
+		cmp si, -2
+		JNE restar
+		mov di, 0xFEFE
+		restar:
 		add si, -2
 		ret
 	desapilar endp
@@ -392,38 +492,10 @@ salir:
 		ret
 	copiar_tope_a_ax endp
 
-	copiar_el_segundo_de_la_pila_a_bx_y_retornar_true_si_no_se_pudo proc; Si no hay segundo operando retorna false
-		add si, -2
-		call pila_no_esta_vacia ; Z=1 si esta vacia
-		JZ terminar_metodo_ ; return true en el c++
+	copiar_tope_a_bx proc; Si no hay segundo operando retorna false
 		mov	bx, word ptr [ADDRESS_STACK+si]
-		add si, 2
-		JMP fin_metodo_
-		terminar_metodo_:
-			call falta_operando
-		fin_metodo_:	
-			push ax
-			mov ax, 1
-			cmp ax, 8 ; no activo prox JNZ si hay error
-			pop ax
 		ret
-	copiar_el_segundo_de_la_pila_a_bx_y_retornar_true_si_no_se_pudo endp
-
-
-		ret
-	pre_procesamiento_operacion_binaria proc
-		call copiar_tope_a_ax
-		call copiar_el_segundo_de_la_pila_a_bx_y_retornar_true_si_no_se_pudo 
-		ret
-	pre_procesamiento_operacion_binaria endp
-
-	post_procesamiento_operacion_binaria proc
-		call desapilar
-		call desapilar
-		call apilar_ax
-		call log_exitoso
-		ret
-	post_procesamiento_operacion_binaria endp
+	copiar_tope_a_bx endp
 
 ;///////// AUXILIARES ////////////////
 
@@ -434,6 +506,8 @@ salir:
 		ret
 	swap_ax_con_bx endp
 
+
+	;calculo del fatorial con llamada recursiva
 	factorial proc
 		factorial_while:
 			cmp ax, 0
@@ -455,7 +529,7 @@ salir:
 _saltear:
 	
 .ports
-ENTRADA: 1, 6, 9, 4, 255
+ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 11, 14, 1, 1, 11, 4, 255
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
