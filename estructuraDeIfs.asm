@@ -129,13 +129,11 @@ while_no_salir:
 		si_es_FACT:
 		cmp ax, C_FACT
 		JNZ si_es_SUM
-			mov ax, 1
-			push dx
 			call desapilar_hacia_ax
-			mov bx, 1
-			call factorial
-			call apilar_bx
+			push dx
+			call factorial_de_ax_dejarlo_en_bx
 			pop dx
+			call apilar_bx
 		JMP fin_si
 		si_es_SUM:
 		cmp ax, C_SUM
@@ -428,12 +426,12 @@ salir:
 	dividir_ax_con_bx endp
 
 	;calculo del fatorial con llamada recursiva
-	factorial proc
+	factorial_de_ax_dejarlo_en_bx proc
 		factorial_while:
 			cmp ax, 0
 			JE factorial_es_cero
 				dec ax ; incremento aca para llegar hasta 0 y ahi asignar a bx el paso base 1
-				call factorial
+				call factorial_de_ax_dejarlo_en_bx
 				inc ax ; aqui empieza la vuelta recursiva
 				push ax ; respaldo ax porque mul guardara en el el resultado del producto
 				mul bx ; el resultado queda en ax porque la operacion lo deja en ax
@@ -444,12 +442,12 @@ salir:
 				mov bx, 1 ; paso base
 			factorial_fin:
 		ret
-	factorial endp
+	factorial_de_ax_dejarlo_en_bx endp
 
 _saltear:
 	
 .ports
-ENTRADA: 1,1, 1,2, 1,3, 1,4, 1,5, 1,1, 1,9, 1,8, 1,-1400, 1,10, 1,11, 1,12, 1,13, 11, 4, 12, 4, 13, 4, 14, 4, 15, 4, 16, 4, 17, 4, 18, 4, 7, 4, 19, 4, 10, 4, 8, 4, 6, 5, 254, 255 
+ENTRADA: 1,1, 1,2, 1,3, 9, 5, 2,3, 9, 5, 3,4, 7, 9, 5, 999, -999, 2,5, 5, 254, 1,-6, 1,2, 14, 4, 1,-2, 13, 4, 255
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
