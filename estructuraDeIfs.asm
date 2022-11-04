@@ -1,40 +1,37 @@
  .data
-MAX_BITS equ 16
-UNO equ 1
 
-COMMAND_NUM equ 1;
-COMMAND_PORT equ 2;
-COMMAND_LOG equ 3;
-COMMAND_TOP equ 4;
-COMMAND_DUMP equ 5;
-COMMAND_DUP equ 6;
-COMMAND_SWAP equ 7;
-COMMAND_NEG equ 8;
-COMMAND_FACT equ 9;
-COMMAND_SUM equ 10;
-COMMAND_CLEAR equ 254;
-COMMAND_HALT equ 255;
+C_NUM equ 1;
+C_PORT equ 2;
+C_LOG equ 3;
+C_TOP equ 4;
+C_DUMP equ 5;
+C_DUP equ 6;
+C_SWAP equ 7;
+C_NEG equ 8;
+C_FACT equ 9;
+C_SUM equ 10;
+C_CLS equ 254;
+C_HALT equ 255;
 
-MARCA_SALIDA equ 255;
-
-OP_SUM equ 11;
-OP_RES equ 12;
-OP_PROD equ 13;
-OP_DIV equ 14;
-OP_MOD equ 15;
-OP_AND equ 16;
-OP_OR equ 17;
-OP_DESP_IZQ equ 18;
-OP_DESP_DER equ 19;
+C_SUMA equ 11;
+C_RESTA equ 12;
+C_MULT equ 13;
+C_DIV equ 14;
+C_MOD equ 15;
+C_AND equ 16;
+C_OR equ 17;
+C_SAL equ 18;
+C_SAR equ 19;
 
 PILA_LLENA equ 60 ; hay que considerar al 0
+COMIENZO_STACK equ -2
 ADDRESS_STACK equ 0x02000
 ENTRADA equ 10
 PUERTO_SALIDA_DEFECTO equ 1
 PUERTO_LOG_DEFECTO equ 2
 
 .code
-mov si, -2; si quedara reservado para el 'indice' en la pila, empieza en -2 para que la primera inserci?n quede en el lugar 0
+mov si, COMIENZO_STACK; si quedara reservado para el 'indice' en la pila, empieza en -2 para que la primera inserci?n quede en el lugar 0
 ; ax sera el operador 1
 ; bx sera el operador 1
 mov dx, PUERTO_LOG_DEFECTO; dx quedara reservado globalmente para la bitacora
@@ -60,25 +57,25 @@ mov cx, PUERTO_SALIDA_DEFECTO; cx quedara reservado globalmente para la salida
 call poner_siguiente_comando_en_ax
 JZ salir
 while_no_salir:
-		cmp ax, COMMAND_LOG
+		cmp ax, C_LOG
 		JE si_es_LOG
 		call log_preprocesamiento	
 		si_es_NUM:
-		cmp ax, COMMAND_NUM
+		cmp ax, C_NUM
 		JNZ si_es_PORT
 			call poner_siguiente_operando_en_ax
 			call log_parametro	
 			call apilar_ax
 		JMP fin_si
 		si_es_PORT:
-		cmp ax, COMMAND_PORT
+		cmp ax, C_PORT
 		JNZ si_es_LOG
 			call poner_siguiente_operando_en_ax
 			call log_parametro	
 			mov cx, ax ; setteo cx, que es la salida, con el valor tomado en bx
 		JMP fin_si
 		si_es_LOG:
-		cmp ax, COMMAND_LOG
+		cmp ax, C_LOG
 		JNZ si_es_TOP
 			push ax
 			call poner_siguiente_operando_en_ax
@@ -89,20 +86,20 @@ while_no_salir:
 			call log_parametro	
 		JMP fin_si
 		si_es_TOP:
-		cmp ax, COMMAND_TOP
+		cmp ax, C_TOP
 		JNZ si_es_DUP
 			call copiar_tope_a_ax
 			call imprimir_en_puerto
 		JMP fin_si
 		si_es_DUP:
-		cmp ax, COMMAND_DUP
+		cmp ax, C_DUP
 		JNZ si_es_DUMP
 			call desapilar_hacia_ax
 			call apilar_ax
 			call apilar_ax
 		JMP fin_si
 		si_es_DUMP:
-		cmp ax, COMMAND_DUMP
+		cmp ax, C_DUMP
 		JNZ si_es_SWAP
 			push si
 			while_dump:
@@ -115,7 +112,7 @@ while_no_salir:
 			pop si
 		JMP fin_si
 		si_es_SWAP:
-		cmp ax, COMMAND_SWAP
+		cmp ax, C_SWAP
 		JNZ si_es_NEG
 			call desapilar_hacia_ax
 			call desapilar_hacia_bx
@@ -123,14 +120,14 @@ while_no_salir:
 			call apilar_bx
 		JMP fin_si
 		si_es_NEG:
-		cmp ax, COMMAND_NEG
+		cmp ax, C_NEG
 		JNZ si_es_FACT
 			call desapilar_hacia_ax
 			neg ax
 			call apilar_ax
 		JMP fin_si
 		si_es_FACT:
-		cmp ax, COMMAND_FACT
+		cmp ax, C_FACT
 		JNZ si_es_SUM
 			mov ax, 1
 			push dx
@@ -141,7 +138,7 @@ while_no_salir:
 			pop dx
 		JMP fin_si
 		si_es_SUM:
-		cmp ax, COMMAND_SUM
+		cmp ax, C_SUM
 		JNZ si_es_CLR
 			mov ax, 0
 			while_suma:
@@ -154,26 +151,26 @@ while_no_salir:
 			call apilar_ax
 		JMP fin_si
 		si_es_CLR:
-		cmp ax, COMMAND_CLEAR
+		cmp ax, C_CLS
 		JNZ si_es_HALT
 			mov si, 0
 		JMP fin_si
 		si_es_HALT:
-		cmp ax, COMMAND_HALT
-		JNZ si_es_OP_SUM
+		cmp ax, C_HALT
+		JNZ si_es_C_SUMA
 			call log_exitoso
 			JMP salir
 		JMP fin_si
-		si_es_OP_SUM:
-		cmp ax, OP_SUM
-		JNZ si_es_OP_RES
+		si_es_C_SUMA:
+		cmp ax, C_SUMA
+		JNZ si_es_C_RESTA
 			call desapilar_hacia_ax
 			call desapilar_hacia_bx
 			add ax, bx 
 			call apilar_ax
 		JMP fin_si
-		si_es_OP_RES:
-		cmp ax, OP_RES
+		si_es_C_RESTA:
+		cmp ax, C_RESTA
 		JNZ si_es_OP_PRO
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
@@ -182,8 +179,8 @@ while_no_salir:
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_PRO:
-		cmp ax, OP_PROD
-		JNZ si_es_OP_DIV
+		cmp ax, C_MULT
+		JNZ si_es_C_DIV
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
 			push dx
@@ -191,9 +188,9 @@ while_no_salir:
 			pop dx
 			call apilar_ax
 		JMP fin_si
-		si_es_OP_DIV:
-		cmp ax, OP_DIV
-		JNZ si_es_OP_MOD
+		si_es_C_DIV:
+		cmp ax, C_DIV
+		JNZ si_es_C_MOD
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
 			push dx
@@ -201,9 +198,9 @@ while_no_salir:
 			pop dx
 			call apilar_ax
 		JMP fin_si
-		si_es_OP_MOD:
-		cmp ax, OP_MOD
-		JNZ si_es_OP_AND
+		si_es_C_MOD:
+		cmp ax, C_MOD
+		JNZ si_es_C_AND
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
 			push dx
@@ -212,16 +209,16 @@ while_no_salir:
 			pop dx
 			call apilar_ax
 		JMP fin_si
-		si_es_OP_AND:
-		cmp ax, OP_AND
-		JNZ si_es_OP_OR
+		si_es_C_AND:
+		cmp ax, C_AND
+		JNZ si_es_C_OR
 			call desapilar_hacia_ax
 			call desapilar_hacia_bx
 			and ax, bx
 			call apilar_ax
 		JMP fin_si
-		si_es_OP_OR:
-		cmp ax, OP_OR
+		si_es_C_OR:
+		cmp ax, C_OR
 		JNZ si_es_OP_DIZ
 			call desapilar_hacia_ax
 			call desapilar_hacia_bx
@@ -229,7 +226,7 @@ while_no_salir:
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_DIZ:
-		cmp ax, OP_DESP_IZQ
+		cmp ax, C_SAL
 		JNZ si_es_OP_DDE
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
@@ -240,7 +237,7 @@ while_no_salir:
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_DDE:
-		cmp ax, OP_DESP_DER
+		cmp ax, C_SAR
 		JNZ si_no
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
@@ -319,7 +316,7 @@ salir:
 		push ax
 		mov ax, 8
 		out dx, ax
-		mov si, -2 ; vaciar pila
+		mov si, COMIENZO_STACK ; vaciar pila
 		pop ax
 		JMP fin_funcion_exception
 		ret
@@ -342,7 +339,7 @@ salir:
 
 	poner_siguiente_comando_en_ax proc
 		in ax, ENTRADA
-		cmp ax, MARCA_SALIDA ; si JZ que salga del while
+		cmp ax, C_HALT ; si JZ que salga del while
 		ret
 	poner_siguiente_comando_en_ax endp
 
