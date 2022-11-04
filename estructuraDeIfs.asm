@@ -27,7 +27,7 @@ OP_OR equ 17;
 OP_DESP_IZQ equ 18;
 OP_DESP_DER equ 19;
 
-PILA_LLENA equ 30 ; hay que considerar al 0
+PILA_LLENA equ 60 ; hay que considerar al 0
 ADDRESS_STACK equ 0x02000
 ENTRADA equ 1
 PUERTO_SALIDA_DEFECTO equ 0x0010
@@ -87,16 +87,12 @@ while_no_salir:
 		si_es_TOP:
 		cmp ax, COMMAND_TOP
 		JNZ si_es_DUP
-			cmp si, 0
-			JL falta_operando
 			call copiar_tope_a_ax
 			call imprimir_en_puerto
 		JMP fin_si
 		si_es_DUP:
 		cmp ax, COMMAND_DUP
 		JNZ si_es_DUMP
-			cmp si, 0
-			JL falta_operando
 			call copiar_tope_a_ax
 			call apilar_ax
 		JMP fin_si
@@ -107,8 +103,7 @@ while_no_salir:
 			while_dump:
 				call pila_no_esta_vacia
 				JZ fin_while_dump
-					call copiar_tope_a_ax
-					call desapilar
+					call desapilar_hacia_ax
 					call imprimir_en_puerto
 				JMP while_dump
 			fin_while_dump:
@@ -117,36 +112,24 @@ while_no_salir:
 		si_es_SWAP:
 		cmp ax, COMMAND_SWAP
 		JNZ si_es_NEG
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			call apilar_ax
 			call apilar_bx
 		JMP fin_si
 		si_es_NEG:
 		cmp ax, COMMAND_NEG
 		JNZ si_es_FACT
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
+			call desapilar_hacia_ax
 			neg ax
 			call apilar_ax
 		JMP fin_si
 		si_es_FACT:
 		cmp ax, COMMAND_FACT
 		JNZ si_es_SUM
-			cmp si, 0
-			JL falta_operando
 			mov ax, 1
 			push dx
-			call copiar_tope_a_ax
-			call desapilar
+			call desapilar_hacia_ax
 			mov bx, 1
 			call factorial
 			call apilar_bx
@@ -160,9 +143,8 @@ while_no_salir:
 			while_suma:
 				call pila_no_esta_vacia
 				JZ fin_while_suma
-					call copiar_tope_a_bx
-					call desapilar
-					add ax, bx
+				call desapilar_hacia_bx
+				add ax, bx
 				JMP while_suma
 			fin_while_suma:
 			pop si
@@ -181,28 +163,16 @@ while_no_salir:
 		si_es_OP_SUM:
 		cmp ax, OP_SUM
 		JNZ si_es_OP_RES
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			add ax, bx 
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_RES:
 		cmp ax, OP_RES
 		JNZ si_es_OP_PRO
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			neg bx
 			add ax, bx 
 			call apilar_ax
@@ -210,14 +180,8 @@ while_no_salir:
 		si_es_OP_PRO:
 		cmp ax, OP_PROD
 		JNZ si_es_OP_DIV
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			push dx
 			mul bx 
 			pop dx
@@ -226,42 +190,20 @@ while_no_salir:
 		si_es_OP_DIV:
 		cmp ax, OP_DIV
 		JNZ si_es_OP_MOD
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
+			call desapilar_hacia_bx
+			call desapilar_hacia_ax
 			push dx
-			mov dx, 0
-			cmp ax, 0
-			JNL no_poner_en_negativo
-				mov dx, 0xFFFF
-			no_poner_en_negativo:
-			idiv bx ; ax <- ax div bx
+			call dividir_ax_con_bx
 			pop dx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_MOD:
 		cmp ax, OP_MOD
 		JNZ si_es_OP_AND
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_bx
+			call desapilar_hacia_ax
 			push dx
-			mov dx, 0
-			cmp ax, 0
-			JNL no_poner_en_negativo_mod
-				mov dx, 0xFFFF
-			no_poner_en_negativo_mod:
-			idiv bx ; ax <- ax div bx
+			call dividir_ax_con_bx
 			mov ax, dx
 			pop dx
 			call apilar_ax
@@ -269,82 +211,44 @@ while_no_salir:
 		si_es_OP_AND:
 		cmp ax, OP_AND
 		JNZ si_es_OP_OR
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			and ax, bx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_OR:
 		cmp ax, OP_OR
 		JNZ si_es_OP_DIZ
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			or ax, bx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_DIZ:
 		cmp ax, OP_DESP_IZQ
 		JNZ si_es_OP_DDE
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			or ax, bx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_DDE:
 		cmp ax, OP_DESP_DER
 		JNZ si_no
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_ax
-			call desapilar
-			cmp si, 0
-			JL falta_operando
-			call copiar_tope_a_bx
-			call desapilar
+			call desapilar_hacia_ax
+			call desapilar_hacia_bx
 			or ax, bx
 			call apilar_ax
 		JMP fin_si
 		si_no:
 			call log_comando_invalido
 			JMP contiunar_if
-	falta_operando:
-		call log_falta_operando
-		JMP fin_si
-	desbordamiento_de_pila:
-		call log_desbordamiento_de_pila
-		JMP fin_si
 	fin_si:
-
-
-			cmp bx, 0
-			JG error_hay_desbordamiento
-			JG error_falta_operando
-			call log_exitoso
-			JMP contiunar_if
-			error_hay_desbordamiento:
-			JMP contiunar_if
-			error_falta_operando:
-			JMP contiunar_if
-
-
+		call log_exitoso
+		JMP contiunar_if
+	fin_funcion_exception:
+		mov sp, 0
+		JMP contiunar_if
 	contiunar_if:
 		call poner_siguiente_comando_en_ax
 	JMP while_no_salir
@@ -391,6 +295,7 @@ salir:
 		out dx, ax
 		cmp ax, 4 ; activo prox JNZ si hay error
 		pop ax
+		JMP fin_funcion_exception
 		ret
 	log_desbordamiento_de_pila endp
 
@@ -400,6 +305,7 @@ salir:
 		out dx, ax
 		cmp ax, 2 ; activo prox JNZ si hay error
 		pop ax
+		JMP fin_funcion_exception
 		ret
 	log_comando_invalido endp
 
@@ -410,6 +316,7 @@ salir:
 		mov si, 0 ; vaciar pila
 		cmp ax, 8 ; activo prox JNZ si hay error
 		pop ax
+		JMP fin_funcion_exception
 		ret
 	log_falta_operando endp
 
@@ -420,6 +327,7 @@ salir:
 		mov si, 0 ; vaciar pila
 		cmp ax, 4 ; activo prox JNZ si hay error
 		pop ax
+		JMP fin_funcion_exception
 		ret
 	desbordamiento_de_pila endp
 
@@ -437,47 +345,37 @@ salir:
 
 ;///////// FUNCIONES PARA PILA ////////////////
 
-	check_pila_llena proc
-		push dx
-		push ax
-		push bx
-		mov ax, si
-		mov dx, 0
-		mov bx, 2
-		idiv bx
-		cmp ax, PILA_LLENA
-		pop bx
-		pop ax
-		pop dx
+	check_si_habra_desbordamiento proc
+		cmp si, PILA_LLENA
+		JL no_hay_desbordamiento
+		call log_desbordamiento_de_pila
+		no_hay_desbordamiento:
 		ret
-	check_pila_llena endp
+	check_si_habra_desbordamiento endp
 
+	check_falta_operando proc
+		cmp ax, 0
+		JGE continuar
+		call log_falta_operando
+		continuar:
+		ret
+	check_falta_operando endp
 
 	apilar_ax proc
-		call check_pila_llena
-		JNZ apilar_ax_continuar
-			call desbordamiento_de_pila
-		apilar_ax_continuar:
+		call check_si_habra_desbordamiento
 		add si, 2
 		mov word ptr [ADDRESS_STACK+si], ax
 		ret
 	apilar_ax endp
 
 	apilar_bx proc
-		call check_pila_llena
-		JNZ apilar_bx_continuar
-			call desbordamiento_de_pila
-		apilar_bx_continuar:
+		call check_si_habra_desbordamiento
 		add si, 2
 		mov word ptr [ADDRESS_STACK+si], bx
 		ret
 	apilar_bx endp
 
 	desapilar proc
-		cmp si, -2
-		JNE restar
-		mov di, 0xFEFE
-		restar:
 		add si, -2
 		ret
 	desapilar endp
@@ -487,25 +385,47 @@ salir:
 		ret
 	pila_no_esta_vacia endp
 
+	desapilar_hacia_ax proc
+		call check_falta_operando
+		mov ax, word ptr [ADDRESS_STACK+si]
+		call desapilar
+		ret
+	desapilar_hacia_ax endp
+
 	copiar_tope_a_ax proc
+		call check_falta_operando
 		mov ax, word ptr [ADDRESS_STACK+si]
 		ret
 	copiar_tope_a_ax endp
 
-	copiar_tope_a_bx proc; Si no hay segundo operando retorna false
+	desapilar_hacia_bx proc; Si no hay segundo operando retorna false
+		call check_falta_operando
 		mov	bx, word ptr [ADDRESS_STACK+si]
+		call desapilar
 		ret
-	copiar_tope_a_bx endp
+	desapilar_hacia_bx endp
 
 ;///////// AUXILIARES ////////////////
 
 	swap_ax_con_bx proc
-		push ax
-		mov ax, bx
-		pop bx
+		call desapilar_hacia_ax
+		call desapilar_hacia_bx
+		call apilar_bx
+		call apilar_ax
 		ret
 	swap_ax_con_bx endp
 
+
+	;calculo del fatorial con llamada recursiva
+	dividir_ax_con_bx proc
+		mov dx, 0
+		cmp ax, 0
+		JNL no_poner_en_negativo_mod
+			mov dx, 0xFFFF
+		no_poner_en_negativo_mod:
+		idiv bx ; ax <- ax div bx
+		ret
+	dividir_ax_con_bx endp
 
 	;calculo del fatorial con llamada recursiva
 	factorial proc
@@ -535,31 +455,36 @@ PUERTO_SALIDA_DEFECTO: 1
 
 ;//////////// TEST //////////////////
 
+;test para probar limite de pila, el tope debe ser 31  y deben haber 31 elementos. En la bitacora se debe mostrar 4 desde el 32 cuando hay desbordamiento
+;ENTRADA: 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32, 1, 33, 1, 34, 5, 255
+
 ; test para probar factorial res. esperado 720
 ;ENTRADA: 1, 6, 9, 4, 255 
 
 ; test mostrar errores en bitacora comando invalido y falta operando
 ; ENTRADA: 200, 1, 14, 11, 14, 1, 1, 11, 4, 255
-;MOD 
+
+;MOD 1, 0
 ;ENTRADA: 2, 15, 1, 3, 1, 2, 15, 4, 255
+;ENTRADA: 2, 15, 1, 4, 1, 2, 15, 4, 255
 
 ;PROD Con negativos
 ;ENTRADA: 2, 15, 1, -2, 1, -3, 13, 4, 255
 
-; PROD > 0
+; PROD > 0 6
 ;ENTRADA: 2, 15, 1, 2, 1, 3, 13, 4, 255
 
-; swap 
+; swap 4, 3, 14, 3, 4, 14
 ;ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 5, 7, 5, 255
 
-; dump
+; dump 4, 3, 14, 3, 4, 14
 ;ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 5, 7, 5 255
 
-; suma 
+; suma 21
 ;ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 10, 255
 
-; neg 
+; neg  -3
 ;ENTRADA: 1, 3, 8, 4, 255
 
-; ejemplo
+; ejemplo 3
 ;ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 11, 14, 1, 1, 11, 4, 255
