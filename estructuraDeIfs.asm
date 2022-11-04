@@ -29,9 +29,9 @@ OP_DESP_DER equ 19;
 
 PILA_LLENA equ 60 ; hay que considerar al 0
 ADDRESS_STACK equ 0x02000
-ENTRADA equ 1
-PUERTO_SALIDA_DEFECTO equ 0x0010
-PUERTO_LOG_DEFECTO equ 0x0011
+ENTRADA equ 10
+PUERTO_SALIDA_DEFECTO equ 1
+PUERTO_LOG_DEFECTO equ 2
 
 .code
 mov si, -2; si quedara reservado para el 'indice' en la pila, empieza en -2 para que la primera inserci?n quede en el lugar 0
@@ -60,8 +60,8 @@ mov cx, PUERTO_SALIDA_DEFECTO; cx quedara reservado globalmente para la salida
 call poner_siguiente_comando_en_ax
 JZ salir
 while_no_salir:
-	cmp ax, MARCA_SALIDA
-	JZ salir
+		cmp ax, COMMAND_LOG
+		JE si_es_LOG
 		call log_preprocesamiento	
 		si_es_NUM:
 		cmp ax, COMMAND_NUM
@@ -80,9 +80,13 @@ while_no_salir:
 		si_es_LOG:
 		cmp ax, COMMAND_LOG
 		JNZ si_es_TOP
+			push ax
 			call poner_siguiente_operando_en_ax
-			call log_parametro	
 			mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
+			pop ax
+			call log_preprocesamiento	
+			mov ax, dx
+			call log_parametro	
 		JMP fin_si
 		si_es_TOP:
 		cmp ax, COMMAND_TOP
@@ -93,7 +97,8 @@ while_no_salir:
 		si_es_DUP:
 		cmp ax, COMMAND_DUP
 		JNZ si_es_DUMP
-			call copiar_tope_a_ax
+			call desapilar_hacia_ax
+			call apilar_ax
 			call apilar_ax
 		JMP fin_si
 		si_es_DUMP:
@@ -138,7 +143,6 @@ while_no_salir:
 		si_es_SUM:
 		cmp ax, COMMAND_SUM
 		JNZ si_es_CLR
-			push si
 			mov ax, 0
 			while_suma:
 				call pila_no_esta_vacia
@@ -147,8 +151,7 @@ while_no_salir:
 				add ax, bx
 				JMP while_suma
 			fin_while_suma:
-			pop si
-			call imprimir_en_puerto
+			call apilar_ax
 		JMP fin_si
 		si_es_CLR:
 		cmp ax, COMMAND_CLEAR
@@ -158,6 +161,7 @@ while_no_salir:
 		si_es_HALT:
 		cmp ax, COMMAND_HALT
 		JNZ si_es_OP_SUM
+			call log_exitoso
 			JMP salir
 		JMP fin_si
 		si_es_OP_SUM:
@@ -171,8 +175,8 @@ while_no_salir:
 		si_es_OP_RES:
 		cmp ax, OP_RES
 		JNZ si_es_OP_PRO
-			call desapilar_hacia_ax
 			call desapilar_hacia_bx
+			call desapilar_hacia_ax
 			neg bx
 			add ax, bx 
 			call apilar_ax
@@ -180,8 +184,8 @@ while_no_salir:
 		si_es_OP_PRO:
 		cmp ax, OP_PROD
 		JNZ si_es_OP_DIV
-			call desapilar_hacia_ax
 			call desapilar_hacia_bx
+			call desapilar_hacia_ax
 			push dx
 			mul bx 
 			pop dx
@@ -227,22 +231,27 @@ while_no_salir:
 		si_es_OP_DIZ:
 		cmp ax, OP_DESP_IZQ
 		JNZ si_es_OP_DDE
-			call desapilar_hacia_ax
 			call desapilar_hacia_bx
-			or ax, bx
+			call desapilar_hacia_ax
+			push cx
+			mov cl, bl
+			sal ax, cl
+			pop cx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_DDE:
 		cmp ax, OP_DESP_DER
 		JNZ si_no
-			call desapilar_hacia_ax
 			call desapilar_hacia_bx
-			or ax, bx
+			call desapilar_hacia_ax
+			push cx
+			mov cl, bl
+			sar ax, cl
+			pop cx
 			call apilar_ax
 		JMP fin_si
 		si_no:
 			call log_comando_invalido
-			JMP contiunar_if
 	fin_si:
 		call log_exitoso
 		JMP contiunar_if
@@ -284,7 +293,6 @@ salir:
 		push ax
 		mov ax, 16
 		out dx, ax
-		cmp ax, 8 ; no activo prox JNZ si hay error
 		pop ax
 		ret
 	log_exitoso endp
@@ -293,7 +301,6 @@ salir:
 		push ax
 		mov ax, 4
 		out dx, ax
-		cmp ax, 4 ; activo prox JNZ si hay error
 		pop ax
 		JMP fin_funcion_exception
 		ret
@@ -303,7 +310,6 @@ salir:
 		push ax
 		mov ax, 2
 		out dx, ax
-		cmp ax, 2 ; activo prox JNZ si hay error
 		pop ax
 		JMP fin_funcion_exception
 		ret
@@ -313,8 +319,7 @@ salir:
 		push ax
 		mov ax, 8
 		out dx, ax
-		mov si, 0 ; vaciar pila
-		cmp ax, 8 ; activo prox JNZ si hay error
+		mov si, -2 ; vaciar pila
 		pop ax
 		JMP fin_funcion_exception
 		ret
@@ -324,8 +329,6 @@ salir:
 		push ax
 		mov ax, 4
 		out dx, ax
-		mov si, 0 ; vaciar pila
-		cmp ax, 4 ; activo prox JNZ si hay error
 		pop ax
 		JMP fin_funcion_exception
 		ret
@@ -354,7 +357,7 @@ salir:
 	check_si_habra_desbordamiento endp
 
 	check_falta_operando proc
-		cmp ax, 0
+		cmp si, 0
 		JGE continuar
 		call log_falta_operando
 		continuar:
@@ -449,12 +452,24 @@ salir:
 _saltear:
 	
 .ports
-ENTRADA: 2, 15, 1, 14, 1, 3, 1, 4, 11, 14, 1, 1, 11, 4, 255
+ENTRADA: 1,1, 1,2, 1,3, 9, 5, 2,3, 9, 5, 3,4, 7, 9, 5, 999, -999, 2,5, 5, 254, 1,-6, 1,2, 14, 4, 1,-2, 13, 4, 255
 PUERTO_LOG_DEFECTO: 1
 PUERTO_SALIDA_DEFECTO: 1
 
 ;//////////// TEST //////////////////
 
+;
+
+; test 1
+;ENTRADA: 1,1, 1,2, 1,3, 1,4, 1,5, 1,1, 1,9, 1,8, 1,-1400, 1,10, 1,11, 1,12, 1,13, 11, 4, 12, 4, 13, 4, 14, 4, 15, 4, 16, 4, 17, 4, 18, 4, 7, 4, 19, 4, 10, 4, 8, 4, 6, 5, 254, 255 
+
+; test 2
+;ENTRADA: 11, 6, 1,1234, 7, 1,4321, 5, 12, 5, 9, 5, 1,-5, 8, 16, 1,1, 1,2, 1,3, 1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 1,10, 1,11, 1,12, 1,13, 1,14, 1,15, 1,16, 1,17, 1,18, 1,19, 1,20, 1,21, 1,22, 1,23, 1,24, 1,24, 1,26, 1,27, 1,28, 1,29, 1,30, 1,31, 1,32, 1,33, 5, 255
+
+; test 3
+;ENTRADA: 1,1, 1,2, 1,3, 9, 5, 2,3, 9, 5, 3,4, 7, 9, 5, 999, -999, 2,5, 5, 254, 1,-6, 1,2, 14, 4, 1,-2, 13, 4, 255
+
+;ENTRADA: 1, 10, 1, -14, 13, 4, 255 
 ;test para probar limite de pila, el tope debe ser 31  y deben haber 31 elementos. En la bitacora se debe mostrar 4 desde el 32 cuando hay desbordamiento
 ;ENTRADA: 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32, 1, 33, 1, 34, 5, 255
 

@@ -2,11 +2,20 @@
 
 .code  ; Segmento de código
 
+		mov ax, 0xFEFF ; a desplazar
+		mov cl, 17 ; desplazamiento
+		sal ax, cl
+		
+		JC hay_overflow
+		JNC no_hay_overflow
 
-		cmp si, 62
-		JL no_hay_desbordamiento
-		call log_desbordamiento_de_pila
-		no_hay_desbordamiento:
+		JMP fin
+		hay_overflow:
+			mov di, 2
+		JMP fin
+		no_hay_overflow:
+			mov di, 1
+		fin:
 
 .ports ; Definición de puertos
 ; 200: 1,2,3  ; Ejemplo puerto simple
