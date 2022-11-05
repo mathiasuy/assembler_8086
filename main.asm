@@ -54,14 +54,14 @@ mov cx, PUERTO_SALIDA_DEFECTO; cx quedara reservado globalmente para la salida
 ; como de las mismas funciones, que teniendo pocas instrucciones y un nombre descriptivo, evidenciar?n 
 ; cual es la funcionalidad que cumplen
 
-call poner_siguiente_comando_en_ax
+call poner_siguiente_operando_comando_en_ax
 JZ salir
 while_no_salir:
 	cmp ax, C_LOG
 	JNE procesar_operando_o_comando
 	si_es_LOG:
 		push ax
-		call poner_siguiente_operando_en_ax
+		call poner_siguiente_operando_comando_en_ax
 		mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
 		pop ax
 		call log_preprocesamiento	
@@ -74,14 +74,14 @@ while_no_salir:
 		si_es_NUM:
 		cmp ax, C_NUM
 		JNZ si_es_PORT
-			call poner_siguiente_operando_en_ax
+			call poner_siguiente_operando_comando_en_ax
 			call log_parametro	
 			call apilar_ax
 		JMP fin_si
 		si_es_PORT:
 		cmp ax, C_PORT
 		JNZ si_es_TOP
-			call poner_siguiente_operando_en_ax
+			call poner_siguiente_operando_comando_en_ax
 			call log_parametro	
 			mov cx, ax ; setteo cx, que es la salida, con el valor tomado en bx
 		JMP fin_si
@@ -254,7 +254,7 @@ while_no_salir:
 		mov sp, 0
 		JMP contiunar_if
 	contiunar_if:
-		call poner_siguiente_comando_en_ax
+		call poner_siguiente_operando_comando_en_ax
 	JMP while_no_salir
 salir:
 
@@ -320,26 +320,11 @@ salir:
 		ret
 	log_falta_operando endp
 
-	desbordamiento_de_pila proc
-		push ax
-		mov ax, 4
-		out dx, ax
-		pop ax
-		JMP fin_funcion_exception
-		ret
-	desbordamiento_de_pila endp
-
 ;///////// FUNCIONES PARA ENTRADA ////////////////
-	poner_siguiente_operando_en_ax proc
+	poner_siguiente_operando__comandoen_ax proc
 		in ax, ENTRADA
 		ret
-	poner_siguiente_operando_en_ax endp
-
-	poner_siguiente_comando_en_ax proc
-		in ax, ENTRADA
-		cmp ax, C_HALT ; si JZ que salga del while
-		ret
-	poner_siguiente_comando_en_ax endp
+	poner_siguiente_operando_comando_en_ax endp
 
 ;///////// FUNCIONES PARA PILA ////////////////
 
