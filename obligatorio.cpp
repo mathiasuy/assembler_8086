@@ -218,7 +218,8 @@ int main() {
             }else if(ax == C_CLS){
                 si = 0;
             }else if(ax == C_HALT){
-                return 0;
+                log_exitoso();
+                break;
             }else if(ax == C_SUMA){
                 desapilar_hacia_ax();
                 desapilar_hacia_bx();

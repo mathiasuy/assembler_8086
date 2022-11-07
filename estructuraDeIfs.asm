@@ -23,6 +23,12 @@ C_OR equ 17;
 C_SAL equ 18;
 C_SAR equ 19;
 
+CODIGO_NUEVO_COMANDO equ 0
+CODIGO_EXITO equ 16
+CODIGO_FALTAN_OPERANDOS equ 8
+CODIGO_DESBORDAMIENTO_DE_PILA equ 4
+CODIGO_COMANDO_INVALIDO equ 2
+
 PILA_LLENA equ 60 ; hay que considerar al 0
 COMIENZO_STACK equ -2
 ADDRESS_STACK equ 0x02000
@@ -31,65 +37,47 @@ PUERTO_SALIDA_DEFECTO equ 1
 PUERTO_LOG_DEFECTO equ 2
 
 .code
-mov si, COMIENZO_STACK; si quedara reservado para el 'indice' en la pila, empieza en -2 para que la primera inserci?n quede en el lugar 0
-; ax sera el operador 1
-; bx sera el operador 1
-mov dx, PUERTO_LOG_DEFECTO; dx quedara reservado globalmente para la bitacora
-mov cx, PUERTO_SALIDA_DEFECTO; cx quedara reservado globalmente para la salida
-; para simplificar las cosas, la inteci?n es que el manejo de la pila y la entrada
-; quede enmascarado en funciones y que no afecten el estado de los registros
-; (o sea si los precisa, que los use, pero que al terminar deje los registros que use de manera auxiliar
-; en el estado anterior al ejecutar la funci?n)
-; se reservar? la menor cantidad posible de registros para tener m?s libertad de uso en el resto del c?digo
-; en particular ax, ya que es el que usan las operaciones mul, idiv, in y out lo usaremos para el comando y el operando 1
-; bx lo usaremos para el operando 2, se usara solo si es realmente necesario. Tanto bx, como ax ser?n manejados por las funciones que 
-; manejan la pila y la entrada. A veces puede evitarse usar 2 registos recurriendo a la pila del sitema (por ejemplo en el swap)
-; dx es el registro que sirve para el indicar el n?mero de puerto que se usar? para la instrucci?n in, 
-; reservaremos este para la bitacora ya que es la que m?s imprime en la salida y adem?s
-; reservaremos cx para guardar el n?mero de puerto de resultados de operaciones y cuando tengamos que imprimir en salida
-; un resultado, asignaremos a dx cx de manera temporal volviendo a dejar dx con el valor anterior luego de imprimir en el puerto
-; Se intentar? maximizar el uso de las funciones definidas, y minimizar el uso directo de instrucciones en el main 
-; pasando siempre por funciones, para que estas puedan centraliar operaciones sobre los registros y controlar aisladamente 
-; el estado de los registros cuando los necesita y/o modifica. Adem?s permitir? que sea  m?s amigable la lectura tanto del main
-; como de las mismas funciones, que teniendo pocas instrucciones y un nombre descriptivo, evidenciar?n 
-; cual es la funcionalidad que cumplen
+mov si, COMIENZO_STACK; sera el indice para el stack
+mov dx, PUERTO_LOG_DEFECTO; 
+mov cx, PUERTO_SALIDA_DEFECTO; 
 
 call poner_siguiente_operando_comando_en_ax
 JZ salir
 while_no_salir:
-	cmp ax, C_LOG
-	JNE procesar_operando_o_comando
-	si_es_LOG:
-		push ax
+	cmp ax, C_LOG ; comparo ax con C_LOG
+	JNE procesar_operando_o_comando ; si no coinciden, salto hacia procesar_operando_o_comando
+	si_es_LOG: ; sino, continúo aquí hasta JMP fin_si, el cual saltará incondicionalmente hasta esa label
+		push ax ; respaldo el valor actual de ax
 		call poner_siguiente_operando_comando_en_ax
 		mov dx, ax ; setteo dx, que es la salida del log, con el valor tomado en bx
-		pop ax
-		call log_preprocesamiento	
+					;una vez hecho ese cambio, se puede mandar la info a imprimir de la bitacora
+		pop ax ; recupero el valor de ax, ya que es por ahí por donde se pasará el valor a la funcion  log_procesamiento
+		call log_preprocesamiento	; se imprimirá el preprocesamiento (0 ax)
 		mov ax, dx
-		call log_parametro	
+		call log_parametro	; ahora se imprimirá el parámetro
 	JMP fin_si
 
-	procesar_operando_o_comando:
-		call log_preprocesamiento	
-		si_es_NUM:
-		cmp ax, C_NUM
-		JNZ si_es_PORT
+	procesar_operando_o_comando: ; en caso que no sea el comando del log puede ser cualquiera de estos otros
+		call log_preprocesamiento	; antes, imprimo 0, comando (que es ax)
+		si_es_NUM: ; pongo la etiqueta para facil lectura porque en realidad no se usa
+		cmp ax, C_NUM ; si ax, que es un comando, es C_NUM
+		JNZ si_es_PORT; Si no es, paso a la siguiente etiqueta si_es_PORT y me salteo lo de abajo
 			call poner_siguiente_operando_comando_en_ax
-			call log_parametro	
+			call log_parametro	; log_parametro imprime ax en la bitacora, que es el parametro
 			call apilar_ax
-		JMP fin_si
-		si_es_PORT:
+		JMP fin_si; Termina si_es_NUM tras haberse comprobado que ax == C_NUM y se salta a la etiqueta del fin
+		si_es_PORT: ; se repite el análisis para si_es_NUM
 		cmp ax, C_PORT
 		JNZ si_es_TOP
 			call poner_siguiente_operando_comando_en_ax
-			call log_parametro	
+			call log_parametro		; log_parametro imprime ax en la bitacora, que es el parametro
 			mov cx, ax ; setteo cx, que es la salida, con el valor tomado en bx
 		JMP fin_si
 		si_es_TOP:
 		cmp ax, C_TOP
 		JNZ si_es_DUP
 			call copiar_tope_a_ax
-			call imprimir_en_puerto
+			call imprimir_en_puerto	; imprime ax en la salida, que es el resultado
 		JMP fin_si
 		si_es_DUP:
 		cmp ax, C_DUP
@@ -106,7 +94,7 @@ while_no_salir:
 				call pila_no_esta_vacia
 				JZ fin_while_dump
 					call desapilar_hacia_ax
-					call imprimir_en_puerto
+					call imprimir_en_puerto; imprime ax en la salida, que es el resultado
 				JMP while_dump
 			fin_while_dump:
 			pop si
@@ -130,9 +118,9 @@ while_no_salir:
 		cmp ax, C_FACT
 		JNZ si_es_SUM
 			call desapilar_hacia_ax
-			push dx
+			push dx ; respaldo dx porque el mul del factorial lo modificará
 			call factorial_de_ax_dejarlo_en_bx
-			pop dx
+			pop dx ; recupero el dx anterior
 			call apilar_bx
 		JMP fin_si
 		si_es_SUM:
@@ -140,10 +128,10 @@ while_no_salir:
 		JNZ si_es_CLR
 			mov ax, 0
 			while_suma:
-				call pila_no_esta_vacia
+				call pila_no_esta_vacia; cmp si, -2 
 				JZ fin_while_suma
 				call desapilar_hacia_bx
-				add ax, bx
+				add ax, bx ; ax <- ax + bx
 				JMP while_suma
 			fin_while_suma:
 			call apilar_ax
@@ -151,13 +139,13 @@ while_no_salir:
 		si_es_CLR:
 		cmp ax, C_CLS
 		JNZ si_es_HALT
-			mov si, 0
+			mov si, COMIENZO_STACK ; dejo el puntero apuntando a al comienzo (antes del primer elemento)
 		JMP fin_si
 		si_es_HALT:
 		cmp ax, C_HALT
 		JNZ si_es_C_SUMA
 			call log_exitoso
-			JMP salir
+			JMP salir ; salgo del if y del while
 		JMP fin_si
 		si_es_C_SUMA:
 		cmp ax, C_SUMA
@@ -172,8 +160,8 @@ while_no_salir:
 		JNZ si_es_OP_PRO
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
-			neg bx
-			add ax, bx 
+			neg bx ; bx = -bx
+			add ax, bx ; ax = ax - bx
 			call apilar_ax
 		JMP fin_si
 		si_es_OP_PRO:
@@ -181,9 +169,9 @@ while_no_salir:
 		JNZ si_es_C_DIV
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
-			push dx
+			push dx ; respaldo dx porque mul lo modifica
 			mul bx 
-			pop dx
+			pop dx ; recupero su estado
 			call apilar_ax
 		JMP fin_si
 		si_es_C_DIV:
@@ -191,9 +179,9 @@ while_no_salir:
 		JNZ si_es_C_MOD
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
-			push dx
+			push dx; respaldo dx porque mul lo modifica
 			call dividir_ax_con_bx
-			pop dx
+			pop dx; recupero su estado
 			call apilar_ax
 		JMP fin_si
 		si_es_C_MOD:
@@ -201,10 +189,10 @@ while_no_salir:
 		JNZ si_es_C_AND
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
-			push dx
+			push dx; respaldo dx porque mul lo modifica
 			call dividir_ax_con_bx
-			mov ax, dx
-			pop dx
+			mov ax, dx ;  en el dx de la idiv esta el mod
+			pop dx; recupero su estado
 			call apilar_ax
 		JMP fin_si
 		si_es_C_AND:
@@ -229,8 +217,8 @@ while_no_salir:
 			call desapilar_hacia_bx
 			call desapilar_hacia_ax
 			push cx
-			mov cl, bl
-			sal ax, cl
+			mov cl, bl; en la parte baja de cl
+			sal ax, cl ; tenemos el desplazamiento
 			pop cx
 			call apilar_ax
 		JMP fin_si
@@ -246,7 +234,7 @@ while_no_salir:
 			call apilar_ax
 		JMP fin_si
 		si_no:
-			call log_comando_invalido
+			call log_comando_invalido ; si no se cumplió con ninguna d elas etiquetas se termina aquí (else)
 	fin_si:
 		call log_exitoso
 		JMP contiunar_if
@@ -254,7 +242,7 @@ while_no_salir:
 		mov sp, 0
 		JMP contiunar_if
 	contiunar_if:
-		call poner_siguiente_operando_comando_en_ax
+		call poner_siguiente_operando_comando_en_ax 
 	JMP while_no_salir
 salir:
 
@@ -272,7 +260,7 @@ salir:
 
 	log_preprocesamiento proc
 		push ax
-		mov ax, 0
+		mov ax, CODIGO_NUEVO_COMANDO
 		out dx, ax
 		pop ax
 		out dx, ax
@@ -286,7 +274,7 @@ salir:
 
 	log_exitoso proc
 		push ax
-		mov ax, 16
+		mov ax, CODIGO_EXITO
 		out dx, ax
 		pop ax
 		ret
@@ -294,7 +282,7 @@ salir:
 
 	log_desbordamiento_de_pila proc
 		push ax
-		mov ax, 4
+		mov ax, CODIGO_DESBORDAMIENTO_DE_PILA
 		out dx, ax
 		pop ax
 		JMP fin_funcion_exception
@@ -303,7 +291,7 @@ salir:
 
 	log_comando_invalido proc
 		push ax
-		mov ax, 2
+		mov ax, CODIGO_COMANDO_INVALIDO
 		out dx, ax
 		pop ax
 		JMP fin_funcion_exception
@@ -312,7 +300,7 @@ salir:
 
 	log_falta_operando proc
 		push ax
-		mov ax, 8
+		mov ax, CODIGO_FALTAN_OPERANDOS
 		out dx, ax
 		mov si, COMIENZO_STACK ; vaciar pila
 		pop ax
@@ -321,7 +309,7 @@ salir:
 	log_falta_operando endp
 
 ;///////// FUNCIONES PARA ENTRADA ////////////////
-	poner_siguiente_operando__comandoen_ax proc
+	poner_siguiente_operando_comando_en_ax proc
 		in ax, ENTRADA
 		ret
 	poner_siguiente_operando_comando_en_ax endp
@@ -433,8 +421,6 @@ _saltear:
 	
 .ports
 ENTRADA: 1,1, 1,2, 1,3, 9, 5, 2,3, 9, 5, 3,4, 7, 9, 5, 999, -999, 2,5, 5, 254, 1,-6, 1,2, 14, 4, 1,-2, 13, 4, 255
-PUERTO_LOG_DEFECTO: 1
-PUERTO_SALIDA_DEFECTO: 1
 
 ;//////////// TEST //////////////////
 
